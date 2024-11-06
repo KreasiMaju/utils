@@ -45,3 +45,5 @@ sudo docker run -d \
   portainer/agent:2.21.3
 
 echo "Docker and Portainer Agent installation completed."
+
+curl -fsSL https://get.casaos.io | sudo bash
