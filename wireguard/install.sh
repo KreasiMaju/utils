@@ -17,46 +17,46 @@ apt update && apt install -y wireguard
 WG_DIR="/etc/wireguard"
 WG_CONF="${WG_DIR}/wg0.conf"
 
-# Ask for server and peer details
-read -p "Enter Server PrivateKey: " SERVER_PRIVATE_KEY
-read -p "Enter Server IP (e.g., 10.0.0.2/24): " SERVER_IP
-read -p "Enter DNS (e.g., 1.1.1.1): " DNS
-read -p "Enter Peer PublicKey: " PEER_PUBLIC_KEY
-read -p "Enter Peer Allowed IPs (e.g., 0.0.0.0/0, ::/0): " PEER_ALLOWED_IPS
-read -p "Enter Endpoint (e.g., 192.168.1.183:51820): " ENDPOINT
-read -p "Enter PersistentKeepalive (e.g., 30): " PERSISTENT_KEEPALIVE
+# Generate client Private and Public Keys
+echo "Generating Client Private and Public Keys..."
+CLIENT_PRIVATE_KEY=$(wg genkey)
+CLIENT_PUBLIC_KEY=$(echo "$CLIENT_PRIVATE_KEY" | wg pubkey)
 
-# Generate Server PublicKey from the provided PrivateKey
-echo "Generating Server PublicKey..."
-SERVER_PUBLIC_KEY=$(echo "$SERVER_PRIVATE_KEY" | wg pubkey)
+# Prompt for server information
+echo "Please provide the following server details:"
+
+read -p "Enter Server PublicKey: " SERVER_PUBLIC_KEY
+read -p "Enter Server Endpoint (IP:Port, e.g., 103.150.117.183:51820): " SERVER_ENDPOINT
+read -p "Enter Client IP (e.g., 10.13.13.2/24): " CLIENT_IP
+read -p "Enter DNS (e.g., 1.1.1.1): " DNS
+read -p "Enter PersistentKeepalive (default 25): " PERSISTENT_KEEPALIVE
+PERSISTENT_KEEPALIVE=${PERSISTENT_KEEPALIVE:-25}
 
 # Create WireGuard configuration file
-echo "Creating WireGuard configuration..."
+echo "Creating WireGuard client configuration..."
 mkdir -p $WG_DIR
 cat <<EOF > $WG_CONF
 [Interface]
-PrivateKey = ${SERVER_PRIVATE_KEY}
-Address = ${SERVER_IP}
+PrivateKey = ${CLIENT_PRIVATE_KEY}
+Address = ${CLIENT_IP}
 DNS = ${DNS}
 
 [Peer]
-PublicKey = ${PEER_PUBLIC_KEY}
-AllowedIPs = ${PEER_ALLOWED_IPS}
-Endpoint = ${ENDPOINT}
+PublicKey = ${SERVER_PUBLIC_KEY}
+Endpoint = ${SERVER_ENDPOINT}
+AllowedIPs = 0.0.0.0/0, ::/0
 PersistentKeepalive = ${PERSISTENT_KEEPALIVE}
 EOF
 
-# Enable IP forwarding
-echo "Enabling IP forwarding..."
-sysctl -w net.ipv4.ip_forward=1
-echo "net.ipv4.ip_forward=1" >> /etc/sysctl.conf
+# Set appropriate permissions for the configuration file
+chmod 600 $WG_CONF
 
-# Start and enable WireGuard
-echo "Starting WireGuard..."
+# Start WireGuard
+echo "Starting WireGuard client..."
 wg-quick up wg0
 systemctl enable wg-quick@wg0
 
-# Output the Server PublicKey for reference
-echo "WireGuard setup complete."
-echo "Server PublicKey: ${SERVER_PUBLIC_KEY}"
+# Output the Client PublicKey to give to the server administrator
+echo "WireGuard client setup complete."
+echo "Provide this Client PublicKey to the server administrator: ${CLIENT_PUBLIC_KEY}"
 echo "Configuration file located at: ${WG_CONF}"
