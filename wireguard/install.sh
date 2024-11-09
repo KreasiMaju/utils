@@ -12,6 +12,7 @@ fi
 # Install WireGuard
 echo "Installing WireGuard..."
 apt update && apt install -y wireguard
+apt-get install resolvconf
 
 # Set WireGuard directory and file paths
 WG_DIR="/etc/wireguard"
@@ -26,8 +27,8 @@ CLIENT_PUBLIC_KEY=$(echo "$CLIENT_PRIVATE_KEY" | wg pubkey)
 echo "Please provide the following server details:"
 
 read -p "Enter Server PublicKey: " SERVER_PUBLIC_KEY
-read -p "Enter Server Endpoint (IP:Port, e.g., 103.150.117.183:51820): " SERVER_ENDPOINT
-read -p "Enter Client IP (e.g., 10.13.13.2/24): " CLIENT_IP
+read -p "Enter Server Endpoint (IP:Port, e.g., 192.168.1.10:1234): " SERVER_ENDPOINT
+read -p "Enter Client IP (e.g., 10.0.0.2/24): " CLIENT_IP
 read -p "Enter DNS (e.g., 1.1.1.1): " DNS
 read -p "Enter PersistentKeepalive (default 25): " PERSISTENT_KEEPALIVE
 PERSISTENT_KEEPALIVE=${PERSISTENT_KEEPALIVE:-25}
