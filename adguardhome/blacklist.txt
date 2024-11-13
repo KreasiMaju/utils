@@ -1,1 +1,6 @@
 ||shinigami07.com##a.lepopup-inherited
+||shinigami07.com##a[href="https://tajir.la/moneysite"]
+||shinigami07.com##a[href="https://t.ly/shinigamiyolo"]
+||shinigami07.com##img[src="https://img.shinigami.ae/auto/smtr2.gif"]
+||shinigami07.com##img[src="https://shinigami07.com/wp-content/uploads/2023/11/shinigami-2.gif"]
+||shinigami07.com##a > img
