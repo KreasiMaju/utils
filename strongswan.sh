@@ -4,8 +4,8 @@
 set -e
 
 echo "Updating system and installing dependencies..."
-apk update
-apk add --no-cache strongswan strongswan-libs strongswan-ipsec strongswan-swanctl
+apt update
+apt install -y strongswan strongswan-pki libcharon-extra-plugins
 
 echo "Configuring StrongSwan with username/password authentication..."
 
@@ -51,6 +51,8 @@ EOF
 
 # Generate server certificates (self-signed for simplicity)
 echo "Generating certificates..."
+mkdir -p /etc/ipsec.d/private /etc/ipsec.d/cacerts /etc/ipsec.d/certs
+
 ipsec pki --gen --type rsa --size 2048 --outform pem > /etc/ipsec.d/private/serverKey.pem
 ipsec pki --self --ca --lifetime 3650 --in /etc/ipsec.d/private/serverKey.pem --type rsa --dn "C=US, O=MyVPN, CN=VPN Root CA" --outform pem > /etc/ipsec.d/cacerts/caCert.pem
 ipsec pki --gen --type rsa --size 2048 --outform pem > /etc/ipsec.d/private/serverKey.pem
@@ -63,6 +65,7 @@ sysctl -p
 
 # Start the IPsec service
 echo "Starting StrongSwan service..."
-service ipsec start
+systemctl enable strongswan
+systemctl start strongswan
 
 echo "StrongSwan installation and configuration complete!"
