@@ -6,6 +6,8 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
+sudo iptables -A INPUT -p udp --dport 1194 -j ACCEPT
+
 # Unduh skrip instalasi OpenVPN
 wget https://git.io/vpn -O openvpn-install.sh
 
