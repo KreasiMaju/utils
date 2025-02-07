@@ -8,8 +8,6 @@ PRESHARED_KEY_FILE="/etc/wireguard/preshared.key"
 IP_ADDRESS="10.0.0.1/24"
 PORT="51820"
 DNS="1.1.1.1"
-PEER_PUBLIC_KEY=""
-PEER_IP="10.0.0.2/32"
 
 # Install WireGuard
 echo "Installing WireGuard..."
@@ -37,9 +35,6 @@ PreDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 PreDown = iptables -D FORWARD -i $WG_INTERFACE -o eth0 -j ACCEPT
 PreDown = iptables -D FORWARD -i eth0 -o $WG_INTERFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
 
-[Peer]
-PublicKey = $PEER_PUBLIC_KEY
-AllowedIPs = $PEER_IP
 EOL
 
 # Set up Preshared Key if provided
