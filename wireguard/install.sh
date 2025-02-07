@@ -1,63 +1,67 @@
 #!/bin/bash
 
-# Exit if any command fails
-set -e
-
-# Check for root privileges
-if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root"
-  exit
-fi
+# Variabel Konfigurasi
+WG_INTERFACE="wg0"
+PRIVATE_KEY_FILE="/etc/wireguard/private.key"
+PUBLIC_KEY_FILE="/etc/wireguard/public.key"
+PRESHARED_KEY_FILE="/etc/wireguard/preshared.key"
+IP_ADDRESS="10.0.0.1/24"
+PORT="51820"
+DNS="1.1.1.1"
+PEER_PUBLIC_KEY=""
+PEER_IP="10.0.0.2/32"
 
 # Install WireGuard
 echo "Installing WireGuard..."
-apt update && apt install -y wireguard
-apt-get install resolvconf
+apt update
+apt install -y wireguard iptables
 
-# Set WireGuard directory and file paths
-WG_DIR="/etc/wireguard"
-WG_CONF="${WG_DIR}/wg0.conf"
+# Generate Server Keys
+echo "Generating WireGuard Server Keys..."
+wg genkey | tee $PRIVATE_KEY_FILE | wg pubkey > $PUBLIC_KEY_FILE
 
-# Generate client Private and Public Keys
-echo "Generating Client Private and Public Keys..."
-CLIENT_PRIVATE_KEY=$(wg genkey)
-CLIENT_PUBLIC_KEY=$(echo "$CLIENT_PRIVATE_KEY" | wg pubkey)
-
-# Prompt for server information
-echo "Please provide the following server details:"
-
-read -p "Enter Server PublicKey: " SERVER_PUBLIC_KEY
-read -p "Enter Server Endpoint (IP:Port, e.g., 192.168.1.10:1234): " SERVER_ENDPOINT
-read -p "Enter Client IP (e.g., 10.0.0.2/24): " CLIENT_IP
-read -p "Enter DNS (e.g., 1.1.1.1): " DNS
-read -p "Enter PersistentKeepalive (default 25): " PERSISTENT_KEEPALIVE
-PERSISTENT_KEEPALIVE=${PERSISTENT_KEEPALIVE:-25}
-
-# Create WireGuard configuration file
-echo "Creating WireGuard client configuration..."
-mkdir -p $WG_DIR
-cat <<EOF > $WG_CONF
+# Setup WireGuard Config
+echo "Setting up WireGuard Config..."
+cat > /etc/wireguard/$WG_INTERFACE.conf <<EOL
 [Interface]
-PrivateKey = ${CLIENT_PRIVATE_KEY}
-Address = ${CLIENT_IP}
-DNS = ${DNS}
+PrivateKey = $(cat $PRIVATE_KEY_FILE)
+Address = $IP_ADDRESS
+ListenPort = $PORT
+DNS = $DNS
+
+PostUp = iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE
+PostUp = iptables -A FORWARD -i $WG_INTERFACE -o eth0 -j ACCEPT
+PostUp = iptables -A FORWARD -i eth0 -o $WG_INTERFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
+
+PreDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+PreDown = iptables -D FORWARD -i $WG_INTERFACE -o eth0 -j ACCEPT
+PreDown = iptables -D FORWARD -i eth0 -o $WG_INTERFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
 
 [Peer]
-PublicKey = ${SERVER_PUBLIC_KEY}
-Endpoint = ${SERVER_ENDPOINT}
-AllowedIPs = 0.0.0.0/0, ::/0
-PersistentKeepalive = ${PERSISTENT_KEEPALIVE}
-EOF
+PublicKey = $PEER_PUBLIC_KEY
+AllowedIPs = $PEER_IP
+EOL
 
-# Set appropriate permissions for the configuration file
-chmod 600 $WG_CONF
+# Set up Preshared Key if provided
+if [ ! -z "$PRESHARED_KEY_FILE" ]; then
+    echo "Setting up Preshared Key..."
+    wg set $WG_INTERFACE peer $PEER_PUBLIC_KEY preshared-key $PRESHARED_KEY_FILE
+fi
+
+# Enable IP forwarding and setup NAT
+echo "Enabling IP forwarding and setting up NAT..."
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.conf
+sysctl -p
+
+# Set up iptables to persist across reboots
+echo "Saving iptables rules..."
+iptables-save > /etc/iptables/rules.v4
 
 # Start WireGuard
-echo "Starting WireGuard client..."
-wg-quick up wg0
-systemctl enable wg-quick@wg0
+echo "Starting WireGuard..."
+wg-quick up $WG_INTERFACE
 
-# Output the Client PublicKey to give to the server administrator
-echo "WireGuard client setup complete."
-echo "Provide this Client PublicKey to the server administrator: ${CLIENT_PUBLIC_KEY}"
-echo "Configuration file located at: ${WG_CONF}"
+# Enable WireGuard on Boot
+systemctl enable wg-quick@$WG_INTERFACE
+
+echo "WireGuard setup is complete."
